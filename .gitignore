@@ -1,4 +1,5 @@
 .terraform
+.supervisor
 *.log
 *.tfstate
 *.tfstate.backup
