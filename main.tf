@@ -32,8 +32,22 @@ resource "random_integer" "jupyter_port" {
   min     = 49152
   max     = 65535
   keepers = {
-    # Generate a new integer each time we switch to a new api_token
-    listener_arn = "${var.api_token}"
+    # Generate a new integer each time we change the environment variables
+    env = "${var.env["JUPYTERHUB_API_TOKEN"]}"
+  }
+}
+
+//
+// Convert map(k,v) to string list [k1=v1,...,kn=vn]
+locals {
+  env_keys = "${keys(var.env)}"
+}
+data "template_file" "environment" {
+  count = "${length(local.env_keys)}"
+  template = "$${key}=\"$${value}\""
+  vars = {
+    key = "${local.env_keys[count.index]}"
+    value = "${lookup(var.env, local.env_keys[count.index])}"
   }
 }
 
@@ -46,6 +60,8 @@ data "template_file" "supervisord_conf" {
 
     ip   = "${local.jupyter_ip}"
     port = "${local.jupyter_port}"
+
+    environment = "${join(",",data.template_file.environment.*.rendered)}"
   }
 }
 
@@ -56,19 +72,6 @@ resource "local_file" "supervisord_conf" {
 
 resource "null_resource" "supervisord" {
   provisioner "local-exec" {
-    environment = {
-      JUPYTERHUB_API_TOKEN = "${var.api_token}"
-      JUPYTERHUB_API_URL   = "${var.api_url}",
-      JUPYTERHUB_BASE_URL  = "${var.base_url}",
-
-      JUPYTERHUB_HOST      = "${var.host}",
-      JUPYTERHUB_CLIENT_ID = "${var.client_id}",
-      JUPYTERHUB_OAUTH_CALLBACK_URL = "${var.oauth_callback_url}",
-
-      JUPYTERHUB_SERVICE_PREFIX = "${var.service_prefix}",
-      JUPYTERHUB_USER           = "${var.user}",
-    }
-
     command = "conda run -n supervisor supervisord -c ${local_file.supervisord_conf.filename}"
   }
 
