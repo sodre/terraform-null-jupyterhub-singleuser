@@ -77,7 +77,7 @@ data "external" "jupyterhub-singleuser" {
 locals {
   supervisor_to_jupyter_state = {
     RUNNING = ""
-    STARTING = ""
+    STARTING = 0
     FAILED = 1
   }
   supervisor_state = "${data.external.jupyterhub-singleuser.result["state"]}"
