@@ -14,20 +14,35 @@ provider local {
   version = "~>1.2"
 }
 
+provider random {
+  version = "~>2.1"
+}
+
 locals {
-  dir_prefix = "${path.module}/.supervisor"
+  dir_prefix   = "${path.module}/.supervisor"
   program_name = "jupyterhub-singleuser"
 }
 
 locals {
   jupyter_ip   = "127.0.0.1"
-  jupyter_port = 8889
+  jupyter_port = "${random_integer.jupyter_port.result}"
+}
+
+resource "random_integer" "jupyter_port" {
+  min     = 49152
+  max     = 65535
+  keepers = {
+    # Generate a new integer each time we switch to a new api_token
+    listener_arn = "${var.api_token}"
+  }
 }
 
 data "template_file" "supervisord_conf" {
   template = "${file("${path.module}/template/supervisord.conf")}"
   vars = {
-    dir_prefix="${local.dir_prefix}"
+    var_log     ="${local.dir_prefix}"
+    var_run     ="${local.dir_prefix}"
+    socket_file ="/tmp/${basename(path.module)}.sock"
 
     ip   = "${local.jupyter_ip}"
     port = "${local.jupyter_port}"
